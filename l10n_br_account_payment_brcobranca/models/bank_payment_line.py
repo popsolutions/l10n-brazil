@@ -56,6 +56,14 @@ class BankPaymentLine(models.Model):
     def prepare_bank_payment_line(self, bank_name_brcobranca):
         payment_mode_id = self.order_id.payment_mode_id
         linhas_pagamentos = self._prepare_boleto_bank_line_vals()
+
+        if not linhas_pagamentos['cidade_sacado']:
+            raise Exception(
+                'Cidade do Sacado não informada.' +
+                'Cliente id: ' + str(self.partner_id.id) + ' - "' + self.partner_id.name + '"')            
+
+        linhas_pagamentos
+
         try:
             bank_method = getattr(
                 self, "_prepare_bank_line_{}".format(bank_name_brcobranca.name)
