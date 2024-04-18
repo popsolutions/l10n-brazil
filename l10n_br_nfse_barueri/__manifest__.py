@@ -22,5 +22,6 @@
     },
     "depends": [
         "l10n_br_nfse",
+	"l10n_br_fiscal_certificate"
     ],
 }
