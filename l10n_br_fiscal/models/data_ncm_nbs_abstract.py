@@ -49,22 +49,31 @@ class DataNcmNbsAbstract(models.AbstractModel):
 
     @api.depends("tax_estimate_ids")
     def _compute_amount(self):
-        for record in self:
-            object_field = OBJECT_FIELDS.get(record._name)
-            last_estimated = record.env["l10n_br_fiscal.tax.estimate"].search(
-                [
-                    (object_field, "=", record.id),
-                    ("company_id", "=", record.env.company.id),
-                ],
-                order="create_date DESC",
-                limit=1,
-            )
+        if not self:
+            return
+        col = OBJECT_FIELDS.get(self._name)
+        company_id = self.env.company.id
+        query = f"""
+            SELECT DISTINCT ON ({col})
+                {col},
+                federal_taxes_import,
+                federal_taxes_national,
+                state_taxes,
+                municipal_taxes
+            FROM l10n_br_fiscal_tax_estimate
+            WHERE {col} = ANY(%(ids)s)
+              AND company_id = %(company_id)s
+            ORDER BY {col}, create_date DESC
+        """
+        self.env.cr.execute(query, {"ids": self.ids, "company_id": company_id})
+        rows = {row[0]: row[1:] for row in self.env.cr.fetchall()}
 
-            if last_estimated:
+        for record in self:
+            row = rows.get(record.id)
+            if row:
+                federal_import, federal_national, state_taxes, municipal_taxes = row
                 record.estimate_tax_imported = (
-                    last_estimated.federal_taxes_import
-                    + last_estimated.state_taxes
-                    + last_estimated.municipal_taxes
+                    federal_import + state_taxes + municipal_taxes
                 )
 
                 record.estimate_tax_national = (
